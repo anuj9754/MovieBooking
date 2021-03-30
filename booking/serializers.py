@@ -48,3 +48,11 @@ class BookedSeatSerializer(serializers.ModelSerializer):
     class Meta:
         model = BookedSeat
         fields = "__all__"
+        depth =1
+
+
+class DetailShowSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Show
+        fields = "__all__"
+        depth = 1

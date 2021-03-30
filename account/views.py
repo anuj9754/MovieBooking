@@ -31,7 +31,7 @@ class UserSignUp(generics.CreateAPIView):
         elif auth_models.UserDetail.objects.filter(email=self.request.data.get('email')).exists():
             self.mode = 'email'
             return True
-        elif User.objects.filter(phone_no=self.request.data.get('phone_no')).exists():
+        elif auth_models.UserDetail.objects.filter(phone_no=self.request.data.get('phone_no')).exists():
             self.mode = 'phone number'
             return True
         return False
@@ -75,7 +75,6 @@ class AdminSignUp(generics.CreateAPIView):
        :models: Employee,User,User permission
        :Output: added single employee into databasen
        """
-    permission_classes = []
     serializer_class = SignUpSerializer
 
     def check_user_exists(self):
@@ -85,7 +84,7 @@ class AdminSignUp(generics.CreateAPIView):
         elif auth_models.UserDetail.objects.filter(email=self.request.data.get('email')).exists():
             self.mode = 'email'
             return True
-        elif User.objects.filter(phone_no=self.request.data.get('phone_no')).exists():
+        elif auth_models.UserDetail.objects.filter(phone_no=self.request.data.get('phone_no')).exists():
             self.mode = 'phone number'
             return True
         return False

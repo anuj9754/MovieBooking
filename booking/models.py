@@ -14,7 +14,7 @@ class Theatre(models.Model):
     city = models.ForeignKey(City, on_delete=models.CASCADE)
     address = models.TextField(null=False)
     no_of_screen = models.IntegerField()
-    user = models.ForeignKey(User, on_delete=models.SET_NULL)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     is_delete = models.BooleanField(default=False)
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
@@ -44,7 +44,7 @@ class Movie(models.Model):
     run_length = models.IntegerField(help_text="Enter run length in minutes", null=True, blank=True)
     certificate = models.CharField(max_length=2, choices=rating_choice)
     trailer = models.URLField(blank=True)
-    is_active = models.BooleanField(blank=True)
+    is_active = models.BooleanField(default=True)
     image = models.ImageField(null=True, blank=True, upload_to='media')
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
@@ -55,7 +55,7 @@ class Movie(models.Model):
 
 class Show(models.Model):
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
-    theatre = models.ForeignKey(Theatre, on_delete=models.CASCADE, null=True, blank=True)
+    theatre = models.ForeignKey(Theatre, on_delete=models.CASCADE)
     screen = models.IntegerField(default=1)
     date_time = models.DateTimeField(null=False)
     no_of_seat = models.PositiveIntegerField(default=1)
@@ -83,7 +83,7 @@ class Seat(models.Model):
     show = models.ForeignKey(Show, on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = ('no', 'show')
+        unique_together = ('no_of_seat', 'show')
 
     def __str__(self):
         return str(self.no) + str(self.show)

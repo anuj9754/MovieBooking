@@ -87,6 +87,7 @@ class TheatreDetails(generics.ListCreateAPIView, generics.UpdateAPIView):
         try:
             request_data = self.request.data
             serializer = self.get_serializer(data=request_data)
+            request_data['user'] = self.request.user.id
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
             response = {
@@ -108,14 +109,15 @@ class TheatreDetails(generics.ListCreateAPIView, generics.UpdateAPIView):
     def update(self, request, *args, **kwargs):
         try:
             theatre_id = int(request.data['id'])
+            request_data = request.data
             instance = book_model.Theatre.objects.get(id=theatre_id)
-
-            serializer = self.get_serializer(instance, request.data)
+            request_data['user'] = self.request.user.id
+            serializer = self.get_serializer(instance, request_data)
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
             response = {
                 'status_code': status.HTTP_201_CREATED,
-                'message': "City Updated Successfully",
+                'message': "Theatre Updated Successfully",
             }
             return Response(response, status=status.HTTP_200_OK)
         except Exception as e:
@@ -199,7 +201,7 @@ class MovieDetails(generics.ListCreateAPIView, generics.UpdateAPIView):
             self.perform_update(serializer)
             response = {
                 'status_code': status.HTTP_201_CREATED,
-                'message': "City Updated Successfully",
+                'message': "Movie Updated Successfully",
             }
             return Response(response, status=status.HTTP_200_OK)
         except Exception as e:
@@ -247,8 +249,40 @@ class ShowDetails(generics.ListCreateAPIView, generics.UpdateAPIView):
     permission_classes = [IsAdmin, ]
     serializer_class = serializers.ShowSerializer
 
+    def check_screen(self):
+        movie_obj = book_model.Movie.objects.filter(id=self.request.data['movie'])
+        theatre_obj = book_model.Theatre.objects.filter(id=self.request.data['theatre'])
+        if not movie_obj.exists():
+            self.mode = "Movie id does not exists"
+            return False
+        if not theatre_obj.exists():
+            self.mode = "Theatre id does not exists"
+            return False
+        date_time_obj = datetime.datetime.strptime(self.request.data['date_time'], '%Y-%m-%d %H:%M')
+        show_obj = book_model.Show.objects.filter(date_time__date=date_time_obj.date())
+
+        if not show_obj.exists():
+            return True
+
+        for obj in show_obj:
+            past_movie = (obj.date_time + datetime.timedelta(minutes=int(obj.movie.run_length))).time()
+            if obj.date_time.time() <= date_time_obj.time() <= past_movie:
+                self.mode = "Show already present date and time"
+                return False
+
+        return True
+
     def create(self, request, *args, **kwargs):
         try:
+            self.mode = None
+            if not self.check_screen():
+                response = {
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'message': "Issued Raised",
+                    'result': self.mode
+                }
+                return Response(response)
+
             request_data = self.request.data
             serializer = self.get_serializer(data=request_data)
             serializer.is_valid(raise_exception=True)
@@ -256,7 +290,7 @@ class ShowDetails(generics.ListCreateAPIView, generics.UpdateAPIView):
             response = {
                 'status_code': status.HTTP_201_CREATED,
                 'message': "Successful Created",
-                'result': serializer.data
+                'result': "serializer.data"
             }
             return Response(response)
 
@@ -271,6 +305,14 @@ class ShowDetails(generics.ListCreateAPIView, generics.UpdateAPIView):
 
     def update(self, request, *args, **kwargs):
         try:
+            self.mode = None
+            if not self.check_screen():
+                response = {
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'message': "Issued Raised",
+                    'result': self.mode
+                }
+                return Response(response)
             show_id = request.data['id']
             instance = book_model.Show.objects.get(id=show_id)
 
@@ -295,7 +337,7 @@ class ShowDetails(generics.ListCreateAPIView, generics.UpdateAPIView):
         paginator = CustomPagination()
         movie_id = self.request.query_params.get('movie', None)
         theatre_id = self.request.query_params.get('theatre', None)
-        queryset = book_model.Movie.objects.all()
+        queryset = book_model.Show.objects.all()
 
         if movie_id is not None:
             queryset = queryset.filter(movie_id=movie_id)
@@ -304,7 +346,7 @@ class ShowDetails(generics.ListCreateAPIView, generics.UpdateAPIView):
             queryset = queryset.filter(theatre_id=theatre_id)
 
         page = paginator.paginate_queryset(queryset, self.request)
-        serializer = serializers.MovieSerializer(page, many=True)
+        serializer = serializers.DetailShowSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
 
@@ -322,7 +364,7 @@ class RetrieveShow(generics.ListAPIView):
         paginator = CustomPagination()
         movie_id = self.request.query_params.get('movie', None)
         theatre_id = self.request.query_params.get('theatre', None)
-        queryset = book_model.Movie.objects.filter(is_active=True)
+        queryset = book_model.Show.objects.filter(is_active=True)
 
         if movie_id is not None:
             queryset = queryset.filter(movie_id=movie_id)
@@ -331,7 +373,7 @@ class RetrieveShow(generics.ListAPIView):
             queryset = queryset.filter(theatre_id=theatre_id)
 
         page = paginator.paginate_queryset(queryset, self.request)
-        serializer = serializers.MovieSerializer(page, many=True)
+        serializer = serializers.DetailShowSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
 
@@ -388,7 +430,9 @@ class BookingDetail(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         paginator = CustomPagination()
-        queryset = book_model.BookedSeat.objects.filter(booking__book_by_id=self.request.user.id).select_related('seat', 'booking').order_by('booking__timestamp')
+        queryset = book_model.BookedSeat.objects.filter(booking__book_by_id=self.request.user.id).select_related('seat',
+                                                                                                                 'booking').order_by(
+            'booking__timestamp')
 
         page = paginator.paginate_queryset(queryset, self.request)
         serializer = serializers.BookedSeatSerializer(page, many=True)

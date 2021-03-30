@@ -16,7 +16,7 @@ def create_token(user):
         token = jwt.encode(payload, settings.SECRET_KEY)
 
         user_details = {"user_id": user.id, "first_name": user.first_name, "token": token,
-                        "role": role.emp_role.role_name}
+                        "role": role.role.role_name}
         return user_details
     except UserPermissions.DoesNotExist:
         return None
